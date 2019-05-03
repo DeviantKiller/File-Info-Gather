@@ -1,0 +1,153 @@
+Function Get-Folder($initialDirectory)
+
+{
+    [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms")|Out-Null
+
+    $foldername = New-Object System.Windows.Forms.FolderBrowserDialog
+    $foldername.Description = "Select a folder"
+    $foldername.rootfolder = "MyComputer"
+
+    if($foldername.ShowDialog() -eq "OK")
+    {
+        $folder += $foldername.SelectedPath
+    }
+    return $folder
+}
+
+
+
+$StopWatch = [system.diagnostics.stopwatch]::StartNew()
+$startTime = Get-Date -Format g
+$ErrorActionPreference = "SilentlyContinue"
+#$pathToData = "E:\testdisk-7.1-WIP\baCK"
+$pathToData = Get-Folder
+#$saveLocation = "E:\testdisk-7.1-WIP\baCK\"
+$csvFile = "RestoredMetaData.csv"
+$fullPath = $pathToData + "\" + $csvFile
+#New-Item $fullPath -ItemType file -Force
+
+try
+    {
+    Write-Host ""
+    Write-Host "  -------------------------------------" -ForegroundColor Magenta
+    Write-Host "-= Welcome to Dans Data-Gather Script! =-" -ForegroundColor Green
+    Write-Host "  -------------------------------------" -ForegroundColor Magenta
+    Write-Host ""
+    Write-Host "This will gather information from: $($pathToData)" -ForegroundColor Green
+    Write-Host "This will gather information from: " -f white -nonewline; Write-Host "`$csvFile" -ForegroundColor Yellow -nonewline; Write-Host " variable. " -f white;
+    Write-Host ""
+    Write-Host "The results will be saved to: $($fullPath)" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Data Location can be altered with the " -f white -nonewline; Write-Host "`$pathToData" -ForegroundColor Yellow -nonewline; Write-Host " variable. " -f white;
+    Write-Host "CSV name can be altered with the " -f white -nonewline; Write-Host "`$csvFile" -ForegroundColor Yellow -nonewline; Write-Host " variable. " -f white;
+    Write-Host ""
+    Write-Host "This will take a while, go and have a coffee or two!" -ForegroundColor Red
+    Write-Host "The script was started at " -f white -nonewline; Write-Host "$($startTime)" -ForegroundColor Yellow;
+    Write-Host ""
+    Read-Host "Press Enter to continue…" | Out-Null
+    $files = Get-ChildItem -Path $pathToData -Recurse
+        
+        Foreach ($fileReturn in $files)
+            {
+                $path = $fileReturn.FullName
+                $shell = New-Object -COMObject Shell.Application
+                $folder = Split-Path $path
+                $file = Split-Path $path -Leaf
+                $shellfolder = $shell.Namespace($folder)
+                $shellfile = $shellfolder.ParseName($file)
+                $totalSecs =  [math]::Round($StopWatch.Elapsed.TotalSeconds,0) 
+                #Write-Host "Full File Name: $($fileReturn.Name)"  -ForegroundColor yellow
+                Write-Host "Full File Name:  " -f White -nonewline; Write-Host "$($fileReturn.Name)" -f Yellow;
+                Write-Host "Folder:  " -f White -nonewline; Write-Host "$($fileReturn.DirectoryName)" -f DarkCyan;
+                Write-Host "Time Taken:  " -f White -nonewline; Write-Host "$($totalSecs)" -f Yellow;
+                                # IF OUTPUT IS NEEDED UNCOMMENT THE NEXT BLOCK
+                <#
+                Write-Host "Extension: $($fileReturn.Extension)"
+                Write-Host "Path: $($fileReturn.DirectoryName)"
+                Write-Host "Extension: $($shellfolder.GetDetailsOf($shellfile, 2); )"
+                Write-Host "Track Length: $($shellfolder.GetDetailsOf($shellfile, 27); )"
+                Write-Host "File Size: $($shellfolder.GetDetailsOf($shellfile, 1); )"
+                Write-Host "Media Type: $($shellfolder.GetDetailsOf($shellfile, 9); )"
+                Write-Host "Audio Type: $($shellfolder.GetDetailsOf($shellfile, 11); )"
+                Write-Host "Artist?: $($shellfolder.GetDetailsOf($shellfile, 13); )"
+                Write-Host "Artist2: $($shellfolder.GetDetailsOf($shellfile, 20); )"
+                Write-Host "Album?: $($shellfolder.GetDetailsOf($shellfile, 14); )"
+                Write-Host "Genre?: $($shellfolder.GetDetailsOf($shellfile, 16); )"
+                Write-Host "Bitrate: $($shellfolder.GetDetailsOf($shellfile, 28); )"
+                Write-Host "Resolution: $($shellfolder.GetDetailsOf($shellfile, 31); )" 
+                #>
+                $OutputObj = New-Object -Type PSObject
+                $OutputObj | Add-Member -MemberType NoteProperty -Name FullFileName -Value $fileReturn.Name
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Resolution -Value $shellfolder.GetDetailsOf($shellfile, 31); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Artist -Value $shellfolder.GetDetailsOf($shellfile, 13); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Album -Value $shellfolder.GetDetailsOf($shellfile, 14); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Track -Value $shellfolder.GetDetailsOf($shellfile, 21); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name TrackLength -Value $shellfolder.GetDetailsOf($shellfile, 27); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Genre -Value $shellfolder.GetDetailsOf($shellfile, 16); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name BitRate -Value $shellfolder.GetDetailsOf($shellfile, 28); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Type -Value $shellfolder.GetDetailsOf($shellfile, 11); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name HumanFileSize -Value $shellfolder.GetDetailsOf($shellfile, 1);
+                $OutputObj | Add-Member -MemberType NoteProperty -Name DirectoryName -Value $fileReturn.DirectoryName
+                $OutputObj | Add-Member -MemberType NoteProperty -Name PathAndFilename -Value $fileReturn.FullName
+                $OutputObj | Add-Member -MemberType NoteProperty -Name FileName -Value $($fileReturn.BaseName)
+                $OutputObj | Add-Member -MemberType NoteProperty -Name Extension -Value $($fileReturn.Extension)
+                $OutputObj | Add-Member -MemberType NoteProperty -Name ExtendedExtension -Value $shellfolder.GetDetailsOf($shellfile, 2);
+                $OutputObj | Add-Member -MemberType NoteProperty -Name DateCreated -Value $shellfolder.GetDetailsOf($shellfile, 3); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name DateRecovered -Value $shellfolder.GetDetailsOf($shellfile, 4); 
+                $OutputObj | Add-Member -MemberType NoteProperty -Name DateLastModified -Value $shellfolder.GetDetailsOf($shellfile, 5); 
+                $OutputObj | Export-Csv $fullPath -Append -NoTypeInformation
+                $newCSV = Get-ChildItem $fullPath      
+            }
+
+    }
+catch
+    {
+        $cancelCSV = "$($newCSV.DirectoryName)\$($newCSV.BaseName)[PARTIAL]$($newCSV.Extension)"
+        Rename-Item $fullPath -NewName $cancelCSV    
+        $totalSecs =  [math]::Round($StopWatch.Elapsed.TotalSeconds,0)  
+        Write-Host ""
+        Write-Host "  ---------------------------------" -ForegroundColor DarkRed
+        Write-Host "-= The Script has been interrupted! =-" -ForegroundColor Red
+        Write-Host "  ---------------------------------" -ForegroundColor DarkRed
+        Write-Host ""
+        Write-Host "Collected data on $($files.Count) files."
+        Write-Host ""
+        Write-Host "Your partial results have been saved to " -f White -nonewline; Write-Host "$($savedLocation) " -f Red;
+        Write-Host ""
+        Write-Host "Your partial results have been renamed to " -f White -nonewline; Write-Host "$($cancelCSV) " -f Red;
+        Write-Host ""
+        Write-Host "The script was interrupted after $($totalSecs) seconds!"
+        Read-Host "The script was unsuccessful. Press Enter to continue…" | Out-Null
+    }
+finally
+    {
+        $completeTime = Get-Date -Format g
+        $fullCSV = "$($newCSV.DirectoryName)\$($newCSV.BaseName)[COMPLETE]$($newCSV.Extension)"
+        Rename-Item $fullPath -NewName $fullCSV     
+        $totalSecs =  [math]::Round($StopWatch.Elapsed.TotalSeconds,0)
+        Write-Host ""
+        Write-Host "  -----------------------------------------" -ForegroundColor Magenta
+        Write-Host "-= The Script has finished gathering data! =-" -ForegroundColor Green
+        Write-Host "  -----------------------------------------" -ForegroundColor Magenta
+        Write-Host ""
+        Write-Host "Collected data on $($files.Count) files."
+        Write-Host ""
+        Write-Host "Your results have been saved to $($savedLocation)" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "If succesfull Your Full results have been renamed to " -f White -nonewline; Write-Host "$($fullCSV) " -f Green;
+        Write-Host ""
+        Write-Host "The script was started at " -f white -nonewline; Write-Host "$($startTime)" -ForegroundColor Yellow;
+        Write-Host "The script finished running at " -f white -nonewline; Write-Host "$($completeTime)" -ForegroundColor Yellow;
+        Write-Host ""
+        Write-Host "The script finished running after $($totalSecs) seconds!"
+        Write-Host ""
+        Read-Host "Script complete. Press enter to exit…" | Out-Null
+    }
+
+$StopWatch.Stop()
+
+
+<# Test This
+$Minutes = $StopWatch.Elapsed.TotalMinutes
+txtTo.Text = DateTime.Now.ToString("dddd, MMMM d, yyyy HH:mm:ss tt")
+#>
